@@ -1,0 +1,101 @@
+# Implementation Plan: Store Head Role Setup & RBAC
+
+Implement the operational role, workflows, store-level inventory management, and dynamic navigation for the **Store Head (Central Store / College or Department Store / Cafeteria Store / ICT Store)**.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Store Head Operational Authority**:
+> Store Head is operationally responsible for their specific campus store. Key responsibilities include:
+> 1. Recording goods receipt for delivered materials.
+> 2. Maintaining item locations (bins/shelves) and inter-bin transfers within their store.
+> 3. Creating preliminary Store/Inter-Store Issue Vouchers (Model 20) against approved requisitions.
+> 4. Finalizing and issuing official vouchers (Model 22), triggering automatic FIFO stock deduction.
+> 5. Initiating inter-store Material Transfer Requests to or from their store.
+> 6. Flagging damaged/expired items and compiling disposal requests.
+> 7. Viewing Store Stock Cards and Bin Cards for all items in their store.
+> 8. Participating in and recording physical stock takes.
+
+---
+
+## Proposed Changes
+
+### 1. Dynamic Role-Based Sidebar Navigation
+
+#### [MODIFY] [Sidebar.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/components/layout/Sidebar.jsx)
+- Define dedicated `STORE_HEAD_NAV` navigation structure:
+  - **Overview**: Store Operations Dashboard (`/`)
+  - **Receiving & Issuing**:
+    - Goods Receipts (`/goods-receipt`) (Record incoming deliveries)
+    - Store Requisitions (`/requisitions`) (View approved requisitions to issue)
+    - Issue Vouchers (Model 20/22) (`/issue-vouchers`) (Create Model 20, Finalize Model 22)
+  - **Store Management & Movement**:
+    - Item Locations & Shelves (`/locations`) (Maintain bin/shelf locations)
+    - Bin Cards & Bin Transfers (`/bin-cards`) (Bin cards & inter-bin transfers)
+    - Inter-Store Transfers (`/transfers`) (Initiate & manage transfers)
+    - Flag Items for Disposal (`/disposal`) (Flag obsolete/damaged items)
+  - **Inventory Records & Takes**:
+    - Stock Cards (Store Ledger) (`/stock-cards`)
+    - Master Items Catalog (`/items`)
+    - Physical Stock Takes (`/stock-control`) (Record physical counts during stock take)
+
+---
+
+### 2. Store Head Operational Dashboard
+
+#### [MODIFY] [Dashboard.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/Dashboard.jsx)
+- Implement a specialized Store Head dashboard view featuring:
+  - **Assigned Store Identity Banner**: Highlights the active store unit (e.g. *Central Store / Main Store*).
+  - **Store Operational KPIs**: Active Bins in store, Items in store, Deliveries awaiting evaluation, Approved Requisitions ready for SIV issuance, and Local Reorder/Safety stock breaches.
+  - **Live Store Action Queue**:
+    - Approved requisitions ready for Model 20 SIV generation.
+    - Preliminary vouchers ready for Model 22 final issuing and physical material release.
+    - Scheduled stock takes awaiting count recording.
+  - **Fast Operation Triggers**: Direct one-click modals/links to Record Delivery, Issue SIV, Transfer Between Bins, Initiate Store Transfer, and Flag for Disposal.
+
+---
+
+### 3. Operational Workflows & Permission Enhancements
+
+#### [MODIFY] [GoodsReceipt.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/receipt/GoodsReceipt.jsx)
+- Ensure Store Head can record incoming deliveries for their store (routing to TEC for evaluation).
+
+#### [MODIFY] [ItemLocations.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/stores/ItemLocations.jsx)
+- Ensure Store Head can assign and update shelf and bin locations for items in their store.
+
+#### [MODIFY] [BinCards.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/cards/BinCards.jsx)
+- Enable Store Head to execute immediate inter-bin stock transfers within their store and view live bin ledger movements.
+
+#### [MODIFY] [IssueVouchers.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/requisition/IssueVouchers.jsx) & [Requisitions.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/requisition/Requisitions.jsx)
+- Enable Store Head to create Model 20 preliminary vouchers against approved requisitions and finalize/issue Model 22 vouchers to deduct stock.
+
+#### [MODIFY] [Transfers.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/transfers/Transfers.jsx)
+- Allow Store Head to initiate inter-store material transfer requests.
+
+#### [MODIFY] [Disposal.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/disposal/Disposal.jsx)
+- Ensure Store Head can flag damaged, expired, or obsolete store items and compile disposal requests.
+
+#### [MODIFY] [StockControl.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/stockControl/StockControl.jsx)
+- Enable Store Head to participate in scheduled stock takes and enter physical count quantities for their store lines.
+
+---
+
+## Verification Plan
+
+### Automated Build Verification
+- Execute `npm run build` in `sms-frontend` to ensure 0 errors.
+- Test backend route permissions.
+
+### Manual Verification
+- Log in as **Store Head (`dawit.storehead@university.edu`)**:
+  - Verify sidebar renders Store Head navigation with "Store Operations & Management" branding.
+  - Verify Store Head dashboard displays store metrics, quick actions, and pending issuing/counting queues.
+  - Test recording a goods receipt for the store.
+  - Test updating item bin locations and performing an inter-bin transfer.
+  - Test generating a preliminary SIV (Model 20) from an approved requisition.
+  - Test finalizing and issuing a Model 22 voucher.
+  - Test initiating an inter-store transfer request.
+  - Test flagging a store item for disposal.
+  - Test recording physical counts on a scheduled stock take.

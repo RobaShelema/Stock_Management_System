@@ -1,0 +1,106 @@
+# Implementation Plan: Property Registration Officer & Department Head
+
+## Overview
+
+Two new roles are being configured — each receives its own dynamic sidebar, tailored dashboard with live action worklists, and granular permissions injected into the relevant workflow pages.
+
+---
+
+## Role 6 — Property Registration Officer (`Property Registration Officer`)
+
+### Responsibilities
+- Generate the official Goods Receiving Note **Model 19 (GRN)** once Store Head recorded the receipt **and** TEC has approved it  
+- Register fixed assets with a unique tag, linked to the originating GRN  
+- Assign and reassign fixed-asset custodians  
+- Create and print per-custodian **User-Cards** and manage periodic physical verification sign-off  
+
+### Sidebar — `PRO_NAV` (label: **Property Records & Asset Registry**)
+| Section | Items |
+|---|---|
+| Overview | PRO Dashboard (`/`) |
+| Official Documentation | GRN Generation — Model 19 (`/goods-receipt`), Fixed Asset Register (`/fixed-assets`) |
+| Custodian Management | User-Cards & Custody Assignments (`/fixed-assets`), Assign / Reassign Custodians (`/fixed-assets`) |
+| Supporting Records | Item Master Catalog (`/items`), Goods Receipts Log (`/goods-receipt`), Suppliers & GRN Sources (`/suppliers`) |
+| Audit & Compliance | Fixed Asset Audit Trail (`/audit-log`) |
+
+> Navigation re-uses existing routes; the dashboard and FixedAssets page content is differentiated by role.
+
+### PRO Dashboard
+- **Stat cards**: GRNs generated today, Fixed assets registered (total), Pending GRN generation (receipts TEC-Approved but not yet GRN'd), User-cards count
+- **Live Worklist A — "TEC-Approved Receipts Awaiting GRN Generation"**: Lists all `goodsReceipts` where `status === "Approved"` (TEC done, no GRN yet). Each row has a **"Generate GRN (Model 19)"** 1-click button calling `generateGrn()`.
+- **Live Worklist B — "Fixed Assets Pending Custodian Assignment"**: Fixed assets without a custodian or with status `"Unassigned"`.
+- **Quick Actions**: Register New Asset, View User-Cards, Audit Trail.
+
+### Permission Changes in Workflow Pages
+
+#### `GoodsReceipt.jsx`
+```diff
+- const canFinalize = currentUser?.role === "Property Registration Officer";
+```
+> Already correct — PRO can call `generateGrn()`. No change needed.
+
+#### `FixedAssets.jsx`
+- `canRegister` already includes `"Property Registration Officer"` ✓
+- **ADD**: `canAssignCustodian` flag so PRO can reassign custodians inline (new "Reassign" column in the DataTable).
+
+---
+
+## Role 7 — Department Head (`Department Head`)
+
+### Responsibilities
+- Submit Store Requisitions on behalf of their unit  
+- **First-level approve or reject** requisitions and returns submitted by their own staff (before PAO)  
+- Submit Material Return Requests (SRN) for items no longer needed or defective  
+- Initiate Material Transfer Requests to/from their unit's store  
+- View stock and fixed-asset records relevant to their unit, including staff User-Cards  
+
+### Sidebar — `DEPT_HEAD_NAV` (label: **Department & Unit Operations**)
+| Section | Items |
+|---|---|
+| Overview | Department Dashboard (`/`) |
+| Unit Requisitions & Approvals | Submit Store Requisition (`/requisitions`), Approve/Reject Staff Requisitions (`/requisitions`), Approve/Reject Staff Returns (`/returns`) |
+| Returns & Transfers | Submit Material Return (SRN) (`/returns`), Initiate Inter-Unit Transfer (`/transfers`) |
+| Unit Property View | Stock Overview (Read-Only) (`/stock-cards`), Fixed Assets & User-Cards (Unit View) (`/fixed-assets`), Item Catalog (`/items`) |
+
+### Department Head Dashboard
+- **Stat cards**: My unit's pending requisitions, staff returns awaiting my decision, pending transfers, fixed assets under unit custody
+- **Live Worklist — "Staff Requisitions Awaiting My Approval"**: lists `requisitions` with `status === "Pending Approval"` for their department. Each row has **Approve / Reject** 1-click actions (calls `decideRequisition`).
+- **Live Worklist — "Staff Returns Awaiting My Review"**: lists `returns` with `status === "Pending Approval"` for their department. **Approve / Reject** 1-click actions (calls `decideReturn`).
+- **Quick Actions**: New Requisition, Submit Return, Initiate Transfer, View Fixed Assets.
+- **Unit Fixed-Asset Summary**: shows assets whose `department` matches the Dept Head's unit.
+
+### Permission Changes in Workflow Pages
+
+#### `Requisitions.jsx`
+- `canRequest` already includes `"Department Head"` ✓  
+- `canApprove` already includes `"Department Head"` ✓  
+
+#### `Returns.jsx`
+- `canRequest` currently only includes `"Department Head"` — verify this is correct ✓  
+
+#### `Transfers.jsx`
+- Add `"Department Head"` to `canInitiate` so they can submit transfer requests.
+
+---
+
+## Files to Change
+
+| File | Change |
+|---|---|
+| [`Sidebar.jsx`](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/components/layout/Sidebar.jsx) | Add `PRO_NAV`, `DEPT_HEAD_NAV`; wire role checks and directorate labels |
+| [`Dashboard.jsx`](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/Dashboard.jsx) | Add PRO dashboard (section 6) and Department Head dashboard (section 7), before the default fallback |
+| [`FixedAssets.jsx`](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/assets/FixedAssets.jsx) | Add `canAssignCustodian` flag; add reassign-custodian action column for PRO |
+| [`Transfers.jsx`](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/transfers/Transfers.jsx) | Ensure `"Department Head"` is in `canInitiate` role list |
+
+> `Requisitions.jsx` and `Returns.jsx` already have correct role checks — no changes needed.
+
+---
+
+## Verification Plan
+
+- `npm run build` must pass with 0 errors after changes
+- Manual checklist:
+  - PRO sidebar shows exactly: Overview, Official Documentation, Custodian Management, Supporting Records, Audit & Compliance
+  - PRO dashboard shows GRN worklist (TEC-approved receipts) with generate button
+  - Dept Head sidebar shows exactly: Overview, Unit Requisitions & Approvals, Returns & Transfers, Unit Property View
+  - Dept Head dashboard shows staff approval worklists with inline Approve/Reject

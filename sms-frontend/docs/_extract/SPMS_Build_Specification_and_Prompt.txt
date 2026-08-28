@@ -1,0 +1,606 @@
+COMPREHENSIVE BUILD SPECIFICATION
+AND FULL-STACK DEVELOPMENT PROMPT
+University Stock and Property Management System (SPMS)
+Consolidated from the approved SRS (v2.0) and the Organizational Stock Management Workflow
+Prepared for: A University Institution (generic — no specific institution named)
+Document Type: Reconciled Specification & AI/Developer Build Prompt
+Version 1.0 — August 2026
+Table of Contents
+0. How to Use This Document
+This document merges two source materials into a single, implementation-ready specification: the approved Software Requirements Specification (SRS v2.0) for the Stock Management System, and the separately supplied Organizational Stock Management Workflow describing the material lifecycle in generic, actor-independent terms.
+It is written to serve two audiences at once. Read as a specification, it explains — in full detail — what every actor in the system is authorized to do and what every use case means in practice. Read as a prompt, Section 11 can be copied directly into an AI coding assistant or handed to a development team as the authoritative brief for building the complete full-stack application: database, backend API, business rules, and frontend.
+The system is framed for a university setting — academic departments, an ICT directorate, a procurement/property office, faculties, a cafeteria, and campus security — without naming any specific institution. Replace "the University" with your actual institution's name during implementation if desired; nothing in the functional design depends on the name.
+1. System Overview & Purpose
+The University Stock and Property Management System (SPMS) is a web-based platform that digitizes the complete lifecycle of materials and fixed assets within a university — from the moment a department identifies a need, through purchasing, technical inspection, storage, issuing, transfer, monitoring, and eventual disposal.
+It replaces manual, paper-based store requisitions, bin cards, stock record cards, Goods Receiving Notes (Model 19), and Store/Inter-Store Issue Vouchers (Model 20/22) with a single auditable digital system, while preserving the institution's existing internal-control structure: technical evaluation before acceptance, multi-level approval before issuing, and committee-approved disposal.
+The system must serve every academic and administrative unit of the University — colleges, departments, the registrar, the library, ICT, facilities/maintenance, and the cafeteria — each of which may operate its own store or draw materials from the central store.
+2. Institutional Context: University Store Structure
+The generic "stores" referenced throughout the SRS map onto the following university structures. Use this mapping as the default seed configuration; institutions may add further stores of the same types.
+Store Type (SRS term)
+University Equivalent
+Main Store
+Central University Store — bulk procurement receiving point for all units
+Department Store
+College / Faculty / Departmental Store (e.g., Engineering workshop store, Science laboratory store, Registrar's office store)
+Cafeteria Store
+Student Cafeteria & Guest House Store
+(additional) ICT Store
+ICT Directorate equipment and consumables store
+(additional) Facilities Store
+Facilities/Maintenance & Estate Management store
+Departments/Units that request and consume materials include: academic departments and colleges, the Registrar's Office, the Library, the ICT Directorate, Facilities/Estate Management, Student Affairs (including the cafeteria and dormitories), Procurement, Finance, and Internal Audit.
+3. Reconciliation: SRS Workflow vs. the General Organizational Workflow
+The supplied Organizational Stock Management Workflow describes the material lifecycle in 21 generic, actor-independent steps. The SRS describes the same lifecycle but formalized into 32 concrete use cases with named actors, approval gates, and official forms (GRN/Model 19, SIV/ISIV Model 20 and 22). The table below maps every generic step onto its SRS equivalent and flags where the SRS is more detailed, and — importantly — where the generic workflow described capabilities the SRS did not yet formalize as a use case.
+3.1 Step-by-Step Mapping
+General Workflow Step
+SRS Coverage
+1. Department identifies need
+Implicit trigger — not a separate use case (correct: needs no system action)
+2. Requisition is prepared
+Use Case: Manage Store Requisition (SR)
+3. Request is approved
+Use Case: Approve/Reject Store Requisition
+4. Store checks stock
+Covered inside Manage Store Requisition (availability validation) and View Stock Card
+5. Goods received & inspected
+Use Cases: Record Goods Receipt; Evaluate Materials for Acceptance (TEC) — SRS adds a formal technical-evaluation gate not present in the generic flow
+6. Stock recorded & stored
+Use Cases: Generate GRN (Model 19); Auto-Update Stock Card; Manage Bin Card
+7. Department requests issue
+Same use case as step 2 (Manage Store Requisition covers both)
+8. Request validated/approved
+Use Cases: Approve/Reject SR; Create Preliminary SIV/ISIV (Model 20); Approve and Amend SIV/ISIV
+9. Stock is issued
+Use Case: Generate SIV/ISIV (Model 22)
+10. Records & quantity updated
+Covered automatically inside Generate SIV/ISIV and Auto-Update Stock Card
+11. Stock is monitored (min/max/reorder/safety levels)
+GAP — only stated as a business rule in the SRS, with no dedicated use case. Added in Section 6 as a new use case.
+12. Transfers are recorded
+Use Cases: Initiate/Approve Material Transfer Request; Transfer Stock Between Bins
+13. Damaged/obsolete items managed
+Use Cases: Auto-Monitor Shelf Life and Status; Flag Items for Disposal; Manage Disposal Request; Manage Disposal Workflow — SRS is materially more detailed here than the generic flow
+14. Physical stock taking performed
+GAP — SRS Business Rule 2.5.9 requires annual stock taking but defines no use case for it. Added in Section 6.
+15. Reconciliation completed
+GAP — no dedicated use case in the SRS. Added in Section 6.
+16. FIFO valuation & reports produced
+Partially covered — FIFO is a business rule (2.5.8) and reports exist (Generate Reports and Analytics), but no use case models the valuation computation itself. Extended in Section 6.
+17. Audit trail maintained
+Use Case: View Audit Logs, plus automatic logging behind every other use case
+3.2 Conclusion of the Reconciliation
+The SRS is the stronger of the two documents for governance and control — it formalizes technical evaluation, multi-stage approval, official form numbers, and a full disposal committee workflow that the generic document only summarizes as "damaged/obsolete items are managed." However, the generic workflow correctly identifies four operational capabilities that the SRS acknowledges only as business rules, not as buildable use cases: continuous reorder/safety-stock monitoring, physical stock taking, discrepancy reconciliation, and FIFO valuation computation.
+This document resolves the gap by formally specifying all four as new use cases (marked [NEW] in Section 6) so that the resulting system is complete against both source documents, not just the SRS in isolation.
+4. Actors and What Each Can Do
+Every actor below is scoped to a university role. Access is enforced by role-based access control (RBAC); a user may hold more than one role (e.g., a Department Head may also act as a Store Head for a small unit store).
+System Administrator (ICT Directorate)
+Owns system configuration, accounts, and technical integrity. Does not participate in the material approval chain.
+Create, update, and deactivate user accounts (never hard-deletes, to preserve audit history)
+Assign and change user roles and permissions
+Configure stores, and system-wide settings
+View the full audit log across all modules
+Trigger data backups and review system health (in production deployment)
+Register and deactivate suppliers on behalf of Procurement if delegated
+Property Administration Officer (PAO) — Procurement & Property Directorate
+University-wide oversight of inventory and property administration; the senior approver across most workflows.
+Approve or reject Store Requisitions
+Approve and amend preliminary Store/Inter-Store Issue Vouchers (Model 20)
+Approve or reject Store Returns after technical evaluation
+Approve or reject inter-store Material Transfer Requests
+Review and forward Disposal Requests to the Disposal Committee
+View all stock, bin, and fixed-asset records university-wide
+Generate and export inventory, movement, and valuation reports
+Review reconciliation reports after physical stock takes
+Store Head (Central Store / College or Department Store / Cafeteria Store / ICT Store)
+Operationally responsible for one specific store.
+Record goods receipt for materials delivered to their store
+Maintain item locations (bin/shelf) within their store
+Create preliminary Store/Inter-Store Issue Vouchers (Model 20) against approved requisitions
+Finalize and issue the Store/Inter-Store Issue Voucher (Model 22), which deducts stock
+Transfer stock between bins within their own store
+Initiate inter-store Material Transfer Requests to or from their store
+Flag damaged, expired, or obsolete items for disposal
+Compile and submit Disposal Requests for items in their store
+View the Stock Card and Bin Card for every item in their store
+Participate in and record physical stock takes for their store
+Store Clerk / Storekeeper
+Supports the Store Head with day-to-day transactions; typically has narrower approval rights.
+Assist in recording goods receipt
+Update bin-level item locations
+Assist in physical stock counting
+View (but not approve) requisitions, vouchers, and stock/bin cards for their store
+Technical Evaluation Committee (TEC)
+A cross-functional inspection panel, typically drawn from Procurement, a relevant technical department (e.g., ICT or Engineering for equipment), and the requesting unit — convened per receipt or return.
+Inspect materials on a pending goods receipt and record Approve/Reject with remarks
+Inspect returned materials (Store Return Notes) and classify condition as Serviceable, Damaged, or Obsolete
+Confirm the justification for items flagged for disposal
+Property Registration Officer
+Finalizes official records and owns the fixed-asset register.
+Generate the official Goods Receiving Note (Model 19) once Store Head and TEC approvals are recorded
+Register fixed assets with a unique tag and link them to their originating GRN
+Assign and reassign fixed-asset custodians
+Create and print per-custodian User-Cards and manage periodic physical verification sign-off
+Department / Unit Head (Academic Department, College, Registrar, Library, Facilities, etc.)
+Represents a consuming unit of the University.
+Submit Store Requisitions on behalf of their unit
+Approve or reject requisitions and returns submitted by their own staff (first-level approval before PAO)
+Submit Material Return Requests (Store Return Notes) for items no longer needed or defective
+Initiate Material Transfer Requests to move stock to/from their unit's store
+View stock and fixed-asset records relevant to their unit, including their staff's User-Cards
+Accountant / Finance Officer
+Owns the financial dimension of inventory and property.
+View inventory and fixed-asset valuation reports (FIFO-based)
+Record the financial write-off of disposed items
+Review reconciliation reports for financial impact after stock takes
+Export financial/valuation reports for the University's financial statements
+Disposal Committee
+An institution-level board (typically including PAO, Finance, and a technical representative) with sole authority to approve disposal.
+Review submitted Disposal Requests with full supporting documentation
+Decide and record the disposal method: auction, destruction, donation, or write-off
+Approve or reject disposal, which is the only action that permanently removes an item from active records
+Campus Security Officer
+Controls the physical movement of materials across campus gates.
+View finalized, issued Store/Inter-Store Issue Vouchers (Model 22) to verify materials leaving campus
+Record gate clearance against a valid issue voucher
+Supplier / Vendor
+External party; not a system user in the base implementation, but tracked as a record.
+(Represented in-system, not a logged-in actor) — supplies materials against a purchase order or donation reference that Store Heads record against on receipt
+5. Canonical End-to-End Workflow (Merged)
+This is the single authoritative process flow the system must implement, reconciling both source documents. Each step names the responsible actor(s) and the use case(s) it invokes.
+A Department/Unit Head identifies a material need within their unit.
+The unit submits a Store Requisition (SR) specifying items and quantities [Manage Store Requisition].
+The Department Head and/or PAO approves or rejects the requisition [Approve/Reject Store Requisition].
+The system automatically checks stock availability against the live Stock Card during requisition submission and approval.
+When new stock is needed, the Store Head records goods receipt against a purchase order or donation reference as materials arrive [Record Goods Receipt].
+The Technical Evaluation Committee inspects the delivery and records Approve/Reject [Evaluate Materials for Acceptance].
+On approval, the Property Registration Officer generates the official Goods Receiving Note (Model 19) [Generate GRN], which automatically posts the Stock Card and Bin Card [Auto-Update Stock Card; Manage Bin Card].
+The Store Head prepares a preliminary Store/Inter-Store Issue Voucher against the approved requisition (Model 20) [Create Preliminary SIV/ISIV].
+PAO or the relevant approver reviews and approves/amends the voucher [Approve and Amend SIV/ISIV].
+The Store Head finalizes issuing, generating the official Model 22 voucher, which deducts stock automatically [Generate SIV/ISIV (Model 22)].
+Campus Security verifies the Model 22 voucher at the gate for materials leaving campus.
+The system continuously monitors stock against reorder and safety levels and raises alerts to the Store Head and PAO [NEW: Monitor Reorder and Safety Stock Levels].
+When materials must move between stores, a Material Transfer Request is initiated and approved [Initiate/Approve Material Transfer]; movement within one store's bins uses Transfer Stock Between Bins.
+If materials are damaged, expired, or obsolete, they are automatically or manually flagged [Auto-Monitor Shelf Life and Status; Flag Items for Disposal], compiled into a Disposal Request [Manage Disposal Request], and decided by the Disposal Committee [Manage Disposal Workflow].
+Materials no longer needed by a unit are returned via a Store Return Note, technically evaluated, and reinstated or routed to disposal [Create Material Return Request; Record Technical Evaluation Result; Approve/Reject Store Return].
+At least once per fiscal year, the Store Head and Store Clerk conduct a physical stock take [NEW: Conduct Physical Stock Taking].
+Counted quantities are compared against system records; any discrepancy is investigated and corrected under authorization [NEW: Reconcile Stock Discrepancies].
+The Accountant reviews FIFO-based valuation, computed automatically from the sequence of receipts [NEW: Compute FIFO Valuation and Generate Valuation Report].
+PAO, the Accountant, and Administrator generate operational and management reports as needed [Generate Reports and Analytics].
+Every action above is written to the immutable audit log, viewable by the Administrator and PAO [View Audit Logs].
+6. Complete Use Case Catalog
+All 36 use cases the system must implement, grouped by module. Use cases newly formalized to close the gap identified in Section 3 are marked [NEW].
+6.1 Authentication, Users and Suppliers
+Use Case: Login
+Actor(s): All registered users
+Precondition: A valid university account exists.
+Main Flow:
+User enters university credentials (or institutional SSO).
+System validates credentials and account status.
+System establishes a role-based session and opens the role-specific dashboard.
+Postcondition: The user is authenticated with access scoped to their role.
+Use Case: Logout
+Actor(s): All registered users
+Precondition: The user has an active session.
+Main Flow:
+User selects logout.
+System terminates the session and clears tokens.
+Postcondition: The session is securely closed.
+Use Case: Manage Users and Roles
+Actor(s): System Administrator
+Precondition: Administrator is authenticated.
+Main Flow:
+Administrator registers a new user and assigns a role.
+Administrator updates or deactivates (never deletes) a user account.
+System enforces RBAC on all subsequent actions.
+Postcondition: Accounts and roles are accurately maintained with full audit history.
+Use Case: Manage Suppliers
+Actor(s): PAO, Store Head
+Precondition: User is authenticated.
+Main Flow:
+User registers a supplier/vendor with contact details.
+User updates or deactivates a supplier.
+User searches suppliers for receipt verification.
+Postcondition: Supplier records remain accurate for goods-receipt verification.
+6.2 Store and Item Setup
+Use Case: Manage Store Information
+Actor(s): Administrator, PAO
+Precondition: User has administrative privileges.
+Main Flow:
+User registers a store (Central Store, College/Department Store, Cafeteria Store, etc.) with code and responsible Store Head.
+System validates the store code is unique.
+System saves the store record.
+Postcondition: The store is available for item, category, and requisition assignment.
+Use Case: Maintain Item Category
+Actor(s): Administrator, Store Head
+Precondition: The store exists.
+Main Flow:
+User selects the owning store.
+User creates/updates a category with code and name.
+System validates uniqueness within the store.
+Postcondition: Items can be classified under the correct store-specific category.
+Use Case: Maintain Item Location
+Actor(s): Store Head, Store Clerk
+Precondition: The item and store exist.
+Main Flow:
+User selects a material and views its current bin/shelf location.
+User updates the location when the material is relocated.
+System timestamps the change.
+Postcondition: The item's location reflects its current physical position.
+6.3 Goods Receipt and Technical Evaluation
+Use Case: Record Goods Receipt
+Actor(s): Store Head, Store Clerk
+Precondition: A supplier/donor has delivered materials.
+Main Flow:
+Store Head records received materials against a purchase order or donation reference.
+System creates a temporary receipt with status "Awaiting Evaluation".
+System notifies the Technical Evaluation Committee.
+Alternative / Exception Flow:
+If delivered items do not match the reference document, the discrepancy is flagged and held for review.
+Postcondition: A temporary receipt exists and TEC has been notified.
+Use Case: Evaluate Materials for Acceptance
+Actor(s): Technical Evaluation Committee
+Precondition: A receipt is awaiting evaluation.
+Main Flow:
+TEC inspects materials against specification and quality.
+TEC records Approve/Reject with remarks.
+System updates status and notifies the Property Registration Officer.
+Postcondition: The receipt is marked Approved or Rejected.
+Use Case: Generate Goods Receiving Note (GRN — Model 19)
+Actor(s): Property Registration Officer, Store Head
+Precondition: The receipt is TEC-approved and Store Head-confirmed.
+Main Flow:
+System confirms all approvals are recorded.
+System generates the GRN with a unique number.
+System permanently posts the materials to stock and links the Stock Card/Bin Card.
+Postcondition: A finalized GRN exists and materials are posted into stock.
+6.4 Stock Card and Bin Card Management
+Use Case: Auto-Update Stock Card
+Actor(s): System (automated)
+Precondition: A stock transaction has been posted.
+Main Flow:
+System detects a completed transaction.
+System creates a Stock Record Card if none exists.
+System appends the transaction and recalculates the running balance (FIFO).
+Postcondition: The Stock Card is accurate without manual entry.
+Use Case: View Stock Card
+Actor(s): Store Head, Store Clerk, Accountant, PAO
+Precondition: User has viewing permission.
+Main Flow:
+User searches by item code/name.
+System displays balance and transaction history.
+User filters or exports the card.
+Postcondition: The user sees an accurate current and historical stock position.
+Use Case: Manage Bin Card
+Actor(s): System (automated), Store Head
+Precondition: A material enters or moves within a bin.
+Main Flow:
+System generates a new Bin Card for a previously unused bin if needed.
+System records direction, supporting reference, and location for every movement.
+System recomputes quantity-on-hand instantly.
+Postcondition: Each bin maintains a perpetually accurate record.
+Use Case: Transfer Stock Between Bins
+Actor(s): Store Head, Store Clerk
+Precondition: Material and both bins exist in the same store.
+Main Flow:
+User selects material, source bin, destination bin, and quantity.
+System validates available quantity.
+System updates both Bin Cards and logs the movement.
+Postcondition: Both bins reflect the new stock position.
+6.5 Store Requisition and Issuing
+Use Case: Manage Store Requisition
+Actor(s): Department/Unit Head, Requesting Staff
+Precondition: The unit is registered.
+Main Flow:
+User creates a Store Requisition specifying items and quantities.
+System validates availability against current stock.
+User submits for approval and system routes it accordingly.
+Postcondition: A pending requisition is created and routed for approval.
+Use Case: Approve / Reject Store Requisition
+Actor(s): Department Head, PAO
+Precondition: A pending requisition exists.
+Main Flow:
+Approver reviews details and availability.
+Approver approves/rejects, optionally amending quantities.
+System notifies the Store Head on approval.
+Postcondition: The requisition is Approved or Rejected and ready for issuing if approved.
+Use Case: Create Preliminary SIV/ISIV (Model 20)
+Actor(s): Store Head
+Precondition: An approved requisition exists.
+Main Flow:
+Store Head prepares a preliminary voucher referencing the requisition.
+System pre-fills item, quantity, and requesting unit.
+Voucher is marked Preliminary — Pending Approval.
+Postcondition: A preliminary voucher awaits approval.
+Use Case: Approve and Amend SIV/ISIV (Model 20)
+Actor(s): PAO, Department Head
+Precondition: A preliminary voucher exists.
+Main Flow:
+Approver reviews against the requisition and stock.
+Approver may amend quantities before approving.
+System records the approval and any amendments.
+Postcondition: The voucher is approved and ready for finalization.
+Use Case: Generate SIV/ISIV (Model 22)
+Actor(s): Store Head
+Precondition: An approved Model 20 voucher exists.
+Main Flow:
+Store Head finalizes issuing against the approved voucher.
+System generates the official Model 22 with a unique reference.
+System deducts stock from the Stock Card/Bin Card and notifies Campus Security.
+Postcondition: Stock is reduced and an official issue voucher exists.
+6.6 Fixed Asset Management
+Use Case: Manage Fixed Assets Registration
+Actor(s): Property Registration Officer
+Precondition: A material is received, approved, and identified as a fixed asset.
+Main Flow:
+Officer registers the asset with a unique tag, value, and acquisition date.
+System links the asset to its GRN and responsible custodian.
+System creates a User-Card for the custodian and starts depreciation/verification tracking.
+Postcondition: The asset is registered with a traceable custody chain.
+Use Case: Manage User-Card
+Actor(s): Property Registration Officer, Department Head
+Precondition: A fixed asset is assigned to a custodian.
+Main Flow:
+System creates/updates a User-Card listing assets held by a person/unit.
+The card updates automatically on transfer, return, or disposal.
+Officer prints the card for periodic verification and sign-off.
+Postcondition: Custody records remain accurate at all times.
+6.7 Returns Management
+Use Case: Create Material Return Request (Store Return Note)
+Actor(s): Department Head, Requesting Staff
+Precondition: The material was previously issued to the unit.
+Main Flow:
+User initiates an SRN specifying material, quantity, and reason.
+System validates against prior issue records.
+System routes the SRN to TEC for inspection.
+Postcondition: A pending SRN is routed for technical evaluation.
+Use Case: Record Technical Evaluation Result (Return)
+Actor(s): Technical Evaluation Committee
+Precondition: A pending SRN exists.
+Main Flow:
+TEC inspects the returned material's condition.
+TEC records the classification.
+System notifies the Store Head of the outcome.
+Postcondition: The material's condition is documented.
+Use Case: Approve / Reject Store Return
+Actor(s): PAO, Store Head
+Precondition: The SRN has a recorded evaluation.
+Main Flow:
+Approver reviews the SRN and evaluation outcome.
+Approver approves (reinstate stock) or rejects (route to disposal).
+System updates the Stock Card/Bin Card if reinstated.
+Postcondition: The return is finalized.
+6.8 Inter-Store Transfer
+Use Case: Initiate Material Transfer Request
+Actor(s): Store Head, Department Head
+Precondition: The material exists in the source store.
+Main Flow:
+User specifies source store, destination store, material, and quantity.
+System validates availability at the source.
+System routes the request to PAO for approval.
+Postcondition: A pending transfer request exists.
+Use Case: Approve / Reject Material Transfer
+Actor(s): PAO
+Precondition: A pending transfer request exists.
+Main Flow:
+PAO reviews the request against need and stock levels.
+PAO approves or rejects.
+On approval, system posts an ISIV and updates both stores' Stock/Bin Cards.
+Postcondition: Both stores' records accurately reflect the transfer.
+6.9 Shelf-Life Monitoring and Disposal
+Use Case: Auto-Monitor Shelf Life and Status
+Actor(s): System (automated)
+Precondition: Materials with expiry or obsolescence criteria exist.
+Main Flow:
+System scans inventory for items nearing/at expiry or marked damaged.
+System updates status automatically (Near-Expiry, Expired, Damaged).
+System alerts the Store Head and PAO.
+Postcondition: At-risk items are identified without manual review.
+Use Case: Flag Items for Disposal
+Actor(s): Store Head, Technical Evaluation Committee
+Precondition: An item is damaged, obsolete, expired, or unserviceable.
+Main Flow:
+User or the system flags the item.
+TEC confirms condition and justification.
+System excludes it from usable stock and queues it for disposal.
+Postcondition: The item is queued for formal disposal.
+Use Case: Manage Disposal Request
+Actor(s): Store Head, PAO
+Precondition: Items are flagged Pending Disposal.
+Main Flow:
+Store Head compiles flagged items into a formal request.
+System attaches supporting documentation.
+PAO forwards the request to the Disposal Committee.
+Postcondition: A documented request is submitted for committee approval.
+Use Case: Manage Disposal Workflow
+Actor(s): Disposal Committee, PAO, Accountant
+Precondition: A Disposal Request has been submitted.
+Main Flow:
+Committee reviews and decides the disposal method.
+Committee records the decision.
+On final approval, system removes the item from active records and the Accountant records the write-off.
+Postcondition: The item is formally disposed with a complete audit history.
+6.10 Stock Monitoring, Stock Taking, Reconciliation and Valuation (New)
+[NEW] Use Case: Monitor Reorder and Safety Stock Levels
+Actor(s): System (automated), Store Head, PAO
+Precondition: Items have defined reorder and safety-stock levels.
+Main Flow:
+System continuously compares each item's on-hand quantity against its reorder level and safety-stock threshold.
+When on-hand quantity falls to or below the reorder level, system raises a reorder alert on the dashboard and notifies the Store Head and PAO.
+When on-hand quantity falls to or below the safety-stock threshold, system raises a higher-severity shortage alert.
+Store Head or PAO may act on the alert by initiating a purchase request or a Material Transfer Request from another store.
+Postcondition: Understocking is identified automatically before it disrupts operations.
+[NEW] Use Case: Conduct Physical Stock Taking
+Actor(s): Store Head, Store Clerk, PAO
+Precondition: A stock-take period has been scheduled (at least annually, per business rule).
+Main Flow:
+PAO schedules a physical stock take for one or more stores.
+Store Head and Store Clerk physically count items and enter the counted quantity against each item's system record.
+System timestamps and locks each counted line to prevent tampering after entry.
+System compiles a Stock Take Sheet comparing counted vs. system quantities for every item in scope.
+Postcondition: A complete, timestamped physical count exists for every item in the stock-take scope.
+[NEW] Use Case: Reconcile Stock Discrepancies
+Actor(s): Store Head, PAO, Accountant
+Precondition: A completed Stock Take Sheet shows one or more discrepancies.
+Main Flow:
+System highlights every item where counted quantity differs from system quantity.
+Store Head investigates each discrepancy and records findings (e.g., unrecorded transaction, miscount, loss).
+PAO authorizes a correcting adjustment entry, which is applied as a reversing/adjusting Stock Card transaction — never a silent overwrite of history.
+System generates a Reconciliation Report summarizing all adjustments, their authorization, and financial impact, routed to the Accountant.
+Postcondition: System records match verified physical quantities, with every adjustment traceable to an authorized reconciliation entry.
+[NEW] Use Case: Compute FIFO Valuation and Generate Valuation Report
+Actor(s): System (automated), Accountant
+Precondition: Items have one or more receipt transactions with recorded unit cost.
+Main Flow:
+System maintains each item's inventory as ordered cost lots in receipt sequence (First-In-First-Out).
+On every issue, transfer, or disposal, system consumes quantity from the oldest remaining cost lot(s) first and records the resulting cost of goods issued/disposed.
+Accountant requests a Valuation Report for a selected date range or store.
+System computes and presents total inventory value, cost of goods issued, and remaining lot-level detail per item.
+Postcondition: Inventory is valued consistently under FIFO and is auditable down to the originating receipt lot.
+6.11 Reporting and Audit
+Use Case: Generate Reports and Analytics
+Actor(s): PAO, Accountant, Store Head, Administrator
+Precondition: Relevant transactional data exists.
+Main Flow:
+User selects report type and filters.
+System compiles the report from live data.
+System supports export to PDF/Excel and printing.
+Postcondition: An accurate, current report supports decision-making.
+Use Case: View Audit Logs
+Actor(s): Administrator, PAO
+Precondition: System activity has occurred.
+Main Flow:
+User opens the Audit Log module.
+User filters by user, date, module, or action.
+System displays a read-only, tamper-evident record.
+Postcondition: Full traceability is available for accountability.
+7. Functional Requirements Summary
+Module
+Coverage
+Authentication & Access
+Login/logout, RBAC across 11 roles, deactivate-not-delete accounts
+Store & Item Setup
+Stores, categories, item master, item locations
+Supplier Management
+Register, update, deactivate, search suppliers
+Goods Receipt & Evaluation
+Temporary receipt, TEC evaluation, GRN (Model 19) generation
+Stock & Bin Cards
+Auto-maintained per-item and per-bin ledgers
+Requisition & Issuing
+SR → approval → preliminary SIV/ISIV (Model 20) → final (Model 22)
+Fixed Assets
+Registration, custodian assignment, User-Cards, depreciation tracking
+Returns
+SRN creation, TEC evaluation, approval/reinstatement
+Transfers
+Inter-store request/approval, intra-store bin transfer
+Disposal
+Shelf-life monitoring, flagging, request, committee decision, write-off
+Stock Monitoring & Control
+Reorder/safety-stock alerts, physical stock take, reconciliation, FIFO valuation (new)
+Reporting & Audit
+Configurable reports, export, immutable audit log
+8. Data Model / Entity Dictionary
+Extends the SRS data dictionary with entities required by the four new use cases.
+Entity
+Description
+User
+Account and authentication information, linked to one or more roles
+Role
+Roles and permissions (RBAC)
+Store
+Central, department/college, cafeteria, ICT, facilities stores
+Category
+Item categories scoped to a store
+Supplier
+Supplier/donor details
+Item
+Material master (fixed asset or consumable), reorder level, safety-stock level, unit cost
+ItemLocation
+Current bin/shelf location of an item within a store
+GoodsReceipt
+Temporary and finalized receipt records
+TechnicalEvaluation
+TEC decisions for receipts and returns
+GRN
+Goods Receiving Note (Model 19) records
+StockCard
+Auto-maintained running balance and history per item, with FIFO cost lots
+CostLot
+[NEW] Individual FIFO receipt lot: item, quantity remaining, unit cost, receipt date
+BinCard
+Auto-maintained running balance and history per bin
+StoreRequisition
+Requisition (SR) records and approval status
+IssueVoucher
+Preliminary and final SIV/ISIV records (Model 20/22)
+FixedAsset
+Fixed asset register with custody and depreciation data
+UserCard
+Per-custodian record of assigned fixed assets
+StoreReturnNote
+Material return (SRN) records
+MaterialTransfer
+Inter-store transfer requests and approvals
+DisposalRequest
+Disposal candidates and committee decisions
+StockTake
+[NEW] A scheduled physical stock-take event and its scope
+StockTakeLine
+[NEW] Counted vs. system quantity per item within a stock take
+ReconciliationEntry
+[NEW] Authorized adjusting transaction correcting a discrepancy
+ReorderAlert
+[NEW] Generated alert when an item crosses its reorder or safety-stock threshold
+Report
+Generated report metadata
+AuditLog
+Immutable record of all system activity
+9. Non-Functional Requirements
+Performance: standard requests respond within 3 seconds; support 100+ concurrent users; reports over 12 months of data complete within 10 seconds.
+Security: authenticated access only; bcrypt-class password hashing; RBAC enforced on every module and API endpoint; HTTPS/TLS everywhere; re-confirmation required for approval/disposal/financial actions.
+Reliability: 99.5% uptime target during working hours; daily automated backups with a 24-hour recovery point objective; database transactions guarantee stock/bin card consistency.
+Usability: role-tailored, simple interface; responsive on desktop and tablet.
+Auditability: every create/update/approve/reject/dispose action is permanently logged with actor, timestamp, and before/after state where applicable.
+Scalability & Maintainability: modular, layered architecture supporting additional stores, categories, and future barcode/RFID integration without redesign.
+10. Suggested Full-Stack Architecture
+Layer
+Technology
+Frontend
+React 18 + Vite + Tailwind CSS, React Router, lucide-react icons
+Backend API
+Node.js + Express.js, REST API, JWT-based authentication
+Database
+PostgreSQL with foreign-key constraints; append-only ledger tables (StockCard, BinCard, AuditLog) — corrections via reversing entries, never deletion
+Auth & RBAC
+JWT session tokens; role-permission middleware on every route
+File/Report Export
+Server-side PDF/Excel generation for GRNs, vouchers, and reports
+Deployment
+Containerized (Docker) API + static frontend build; managed PostgreSQL instance
+Note: a frontend implementing this specification's UI and workflows (with in-memory mock data standing in for the API) has already been built separately using this stack. Section 11 below is written so the same architecture can be extended with a real backend without any frontend rework — every page already consumes data and actions through a single context layer designed to be swapped for live API calls.
+11. The Development Prompt
+How to use this section
+Everything below this point is written as a single, self-contained instruction block. Copy Section 11 in full into an AI coding assistant (e.g., Claude Code) or attach it as the brief for a development team. It assumes Sections 1–10 above are attached or pasted alongside it as supporting context.
+11.1 Prompt
+Build a full-stack, production-ready University Stock and Property Management System (SPMS) implementing the specification in Sections 1–10 of this document. Follow these directives exactly:
+Implement all 36 use cases listed in Section 6, organized into the 11 modules listed in Section 7, with no functionality omitted or simplified below what each use case's Main Flow describes.
+Model the database using the Entity Dictionary in Section 8. StockCard, BinCard, and AuditLog must be append-only: corrections are new reversing/adjusting entries, never edits or deletes of prior rows. Implement CostLot tracking so FIFO valuation (Use Case: Compute FIFO Valuation) is computed from real lot data, not estimated.
+Enforce the actor capability matrix in Section 4 as backend authorization middleware, not just frontend UI hiding — every API route must independently verify the caller's role is permitted to perform that action, mirroring the Access Control table structure used in the SRS.
+Implement the full approval chains exactly as specified: goods receipt requires both Store Head confirmation and TEC approval before a GRN can be generated; issuing requires an approved requisition, then an approved preliminary voucher (Model 20), before a final voucher (Model 22) can be generated and stock deducted; disposal requires a flagged item, a compiled request, and Disposal Committee approval before permanent removal from active records.
+Implement the four new use cases in Section 6.10 (Monitor Reorder and Safety Stock Levels, Conduct Physical Stock Taking, Reconcile Stock Discrepancies, Compute FIFO Valuation and Generate Valuation Report) as first-class modules, not afterthoughts — they close a real gap between the SRS and the organization's actual operating workflow and are required for the system to be considered complete.
+Build the REST API first, one resource group per module in Section 7, each with standard list/detail/create/update endpoints plus explicit action endpoints for workflow transitions (e.g., POST /goods-receipts/:id/evaluate, POST /goods-receipts/:id/generate-grn, POST /requisitions/:id/approve, POST /disposal-requests/:id/decide).
+Build the frontend using React + Vite + Tailwind CSS per Section 10, with one page per module matching the navigation structure: Dashboard, Stores, Categories, Item Locations, Item Master, Suppliers, Goods Receipt & GRN, Stock Cards, Bin Cards, Store Requisitions, Issue Vouchers, Fixed Assets, Material Returns, Inter-Store Transfers, Disposal Workflow, Stock Take & Reconciliation, Reports & Analytics, Audit Log, Users & Roles.
+Replace any mock or in-memory data layer with real API calls to the backend built in step 6; keep a single data-access layer (e.g., one API client module or context) so no page component needs to change when the backend evolves.
+Seed the database with realistic university demo data: at least a Central Store, two department/college stores, and a cafeteria store; sample items across consumables and fixed assets; one user per actor role from Section 4; and a handful of transactions in each workflow stage (pending, approved, and completed) so every screen has meaningful content on first run.
+Implement the Non-Functional Requirements in Section 9 as concrete technical measures: JWT auth with role claims, bcrypt password hashing, HTTPS-only in production config, rate-appropriate response times, and database transactions wrapping every multi-table write (e.g., issuing a voucher must atomically update the voucher, Stock Card, and Bin Card together).
+Write automated tests covering: each approval-chain use case's happy path and at least one rejected/blocked path; RBAC enforcement (a user without the required role must be denied at the API level); and FIFO valuation correctness against a constructed sequence of receipts and issues.
+Deliver a README documenting environment setup, database migration/seed commands, how to run the backend and frontend together locally, and the full list of environment variables required.
+11.2 Definition of Done
+Treat the build as complete only when all of the following hold:
+Every use case in Section 6 can be exercised end-to-end through the UI by a user logged in with the correct role, and is blocked for users without that role.
+The full canonical workflow in Section 5 can be walked start to finish using seeded demo data without manual database intervention.
+Stock Card, Bin Card, and Audit Log entries are never edited or deleted — only appended to — verified by attempting an update/delete and confirming it is rejected or unavailable in the UI/API.
+A physical stock take can be run, a discrepancy introduced, reconciled with an authorized adjustment, and the adjustment is visible on the Stock Card as a distinct, attributed entry.
+A FIFO valuation report for any item matches a hand-calculated FIFO valuation for the same receipt/issue sequence.
+Disposal cannot occur without a Disposal Committee approval recorded against the specific Disposal Request.

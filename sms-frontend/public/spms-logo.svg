@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Stock Management System</title>
+  <desc id="desc">Warehouse shelves with inventory boxes and an upward movement arrow.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b6cf0" />
+      <stop offset="1" stop-color="#0649b7" />
+    </linearGradient>
+  </defs>
+  <path fill="#102f58" d="M256 48 72 154v214l48 28V181l136-78 136 78v105l48-28V154L256 48Z" />
+  <path fill="url(#blue)" d="m256 48 184 106v214l-48 28V181l-136-78V48Z" />
+  <g fill="#102f58">
+    <rect x="144" y="164" width="18" height="188" rx="5" />
+    <rect x="350" y="164" width="18" height="188" rx="5" />
+    <rect x="144" y="206" width="224" height="16" rx="5" />
+    <rect x="144" y="282" width="224" height="16" rx="5" />
+    <path d="M192 166h42v34h-42z" />
+    <path d="M270 148h50v52h-50z" />
+  </g>
+  <g fill="url(#blue)">
+    <path d="M164 236h58v42h-58z" />
+    <path d="M250 228h76v50h-76z" />
+    <path d="M284 310h58v42h-58z" />
+  </g>
+  <path fill="#102f58" d="m96 332 94-54 72 42-94 55-72-43Z" />
+  <path fill="url(#blue)" d="m96 332 72 43v84l-72-43v-84Zm72 43 94-55v84l-94 55v-84Z" />
+  <path fill="none" stroke="#fff" stroke-width="14" d="m112 337 58 35 75-44" />
+  <path fill="url(#blue)" d="M218 390c88-8 157-40 211-98l-20-18 69-24-9 72-21-18c-61 68-137 105-230 113v-27Z" />
+</svg>

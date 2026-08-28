@@ -1,0 +1,103 @@
+# Implementation Plan: Stock Clerk & Technical Evaluation Committee (TEC) Setup & RBAC
+
+Implement individual role behaviors, dynamic sidebar navigations, custom dashboards, and permission boundaries for:
+1. **Store Clerk / Storekeeper (`Stock Clerk`)**
+2. **Technical Evaluation Committee (`Technical Evaluation Committee` / `TEC`)**
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Strict Role Boundary Separation**:
+> - **Store Clerk (`Stock Clerk`)**: Assists Store Head in recording goods receipts, updating bin locations, executing bin transfers, and entering physical counts. Has **read-only** access to requisitions and vouchers (strictly barred from approving requisitions or finalizing/amending vouchers).
+> - **Technical Evaluation Committee (`TEC`)**: Dedicated inspection panel responsible for evaluating pending goods receipts (Approve/Reject with remarks), evaluating returned materials (classifying condition as *Serviceable*, *Damaged*, or *Obsolete*), and confirming disposal justifications.
+
+---
+
+## Proposed Changes
+
+### 1. Dynamic Role-Aware Sidebar Navigation
+
+#### [MODIFY] [Sidebar.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/components/layout/Sidebar.jsx)
+- Define `STOCK_CLERK_NAV`:
+  - Directorate: **Storekeeper & Stock Operations**
+  - **Overview**: Storekeeper Dashboard (`/`)
+  - **Assisting Operations**:
+    - Record Goods Receipts (`/goods-receipt`)
+    - Item Locations & Bins (`/locations`)
+    - Bin Cards & Transfers (`/bin-cards`)
+    - Physical Stock Counts (`/stock-control`)
+  - **View-Only Records**:
+    - Store Requisitions (`/requisitions`) (View Only)
+    - Issue Vouchers (`/issue-vouchers`) (View Only)
+    - Store Stock Cards (`/stock-cards`) (View Only)
+    - Item Catalog (`/items`) (View Only)
+- Define `TEC_NAV`:
+  - Directorate: **Technical Inspection & Evaluation Panel**
+  - **Overview**: Technical Evaluation Dashboard (`/`)
+  - **Technical Inspections & Evaluations**:
+    - Receipts Inspection (`/goods-receipt`) (Approve / Reject with remarks)
+    - Returns Inspection (`/returns`) (Classify Serviceable / Damaged / Obsolete)
+    - Disposal Confirmation (`/disposal`) (Confirm justification & flag)
+  - **Technical References**:
+    - Item Specifications & Catalog (`/items`)
+    - Technical Evaluation History (`/audit-log`)
+
+---
+
+### 2. Tailored Role Dashboards
+
+#### [MODIFY] [Dashboard.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/Dashboard.jsx)
+- **Store Clerk View (`Stock Clerk`)**:
+  - Highlights store assistance tasks: Record Delivery, Update Bin Locations, Perform Bin Transfers, Enter Stock Counts.
+  - Active counts pending and quick operation launchers.
+  - View of recent receipts and low stock warnings.
+- **Technical Evaluation Committee View (`Technical Evaluation Committee`)**:
+  - Live **Technical Inspection Worklists**:
+    - Pending Goods Receipts awaiting inspection (with direct Evaluate modal).
+    - Pending Store Returns (SRN) awaiting technical condition classification (*Serviceable* vs. *Damaged* vs. *Obsolete*).
+    - Flagged Disposal items requiring technical review.
+  - Evaluation KPIs and inspection activity feed.
+
+---
+
+### 3. Workflow Pages & Permission Adjustments
+
+#### [MODIFY] [GoodsReceipt.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/receipt/GoodsReceipt.jsx)
+- Store Clerk & Store Head can record receipts.
+- Only TEC can perform technical evaluation (Approve/Reject with inspection remarks).
+
+#### [MODIFY] [Returns.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/returns/Returns.jsx)
+- Only TEC can perform technical evaluation and condition classification (*Serviceable*, *Damaged*, *Obsolete*).
+
+#### [MODIFY] [Disposal.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/disposal/Disposal.jsx)
+- TEC can confirm technical justifications and flag unserviceable items for disposal.
+
+#### [MODIFY] [Requisitions.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/requisition/Requisitions.jsx) & [IssueVouchers.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/requisition/IssueVouchers.jsx)
+- Ensure Store Clerk has view-only access with zero approval, voucher creation, or amendment actions.
+
+#### [MODIFY] [ItemLocations.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/stores/ItemLocations.jsx) & [BinCards.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/cards/BinCards.jsx)
+- Store Clerk can maintain bin locations and transfer stock between bins.
+
+#### [MODIFY] [StockControl.jsx](file:///c:/Users/robas/OneDrive/Desktop/Stock%20Management%20System/sms-frontend/src/pages/stockControl/StockControl.jsx)
+- Store Clerk can enter physical counts on scheduled stock takes.
+
+---
+
+## Verification Plan
+
+### Automated Build Verification
+- Execute `npm run build` in `sms-frontend` to verify 0 build/lint errors.
+
+### Manual Verification
+- **Store Clerk (`almaz.clerk@university.edu`)**:
+  - Verify sidebar renders "Storekeeper & Stock Operations" navigation with assisting operations and read-only views.
+  - Verify dashboard displays storekeeper tasks.
+  - Verify Requisitions and Issue Vouchers do not show action/approve buttons.
+  - Verify ability to record goods receipt, update bin locations, and enter stock counts.
+- **Technical Evaluation Committee (`yosef.tec@university.edu`)**:
+  - Verify sidebar renders "Technical Inspection & Evaluation Panel" navigation.
+  - Verify dashboard displays pending goods receipts inspection and returns condition evaluation queues.
+  - Test evaluating a pending goods receipt with inspection remarks.
+  - Test evaluating a returned item and classifying condition (*Serviceable* / *Damaged* / *Obsolete*).

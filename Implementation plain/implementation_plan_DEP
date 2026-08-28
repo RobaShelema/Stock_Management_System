@@ -1,0 +1,127 @@
+# Implementation Plan: Department / Unit Head — Full Role Refactor
+
+## Root Cause Analysis
+
+After reading every relevant backend controller, route, frontend page, context, and seed data, here are the **real problems**:
+
+### 🔴 Critical: Backend scope bug in `returns.controller.js`
+
+The `list` function filters by `LOWER(sr.department)` — but **`sr` is an alias for `store_requisitions`**, not `store_return_notes`. Store return notes don't have a `department` column directly — they link through `source_issue_voucher_id → store_requisitions`. So the department filter silently fails with a SQL error or no results.
+
+```js
+// ❌ WRONG: sr is alias for store_requisitions (joined left), not the return note
+conditions.push(`LOWER(sr.department) = LOWER($${params.length})`);
+```
+
+**Fix**: Add a `department` column to `store_return_notes`, populated from the requisition's department on insert — OR filter via the join correctly via `LOWER(sr.department)` when the join is always present (which it's not for Department Head-submitted returns since they go directly to TEC without a requisition).
+
+**Best Fix**: Add a `department` column to `store_return_notes` and populate it on insert from the requesting user's department. Then filter on `LOWER(srn.department)`.
+
+---
+
+### 🔴 Critical: Backend scope bug in `requisitions.controller.js`
+
+The `list` function (line 10) calls `assignedStoreIds(req.user)` for Department Head. `assignedStoreIds` looks for stores where `head_user_id = user.id OR store_id = user.storeId`. This ADDS a `store_id = ANY(...)` WHERE clause — meaning Department Head only sees requisitions for stores they're assigned to, not all requisitions for their department. The department filter then runs in addition with AND, which may further narrow or break results.
+
+**Fix**: In `list`, for Department Head, skip the store-scope filter and only apply department filter.
+
+---
+
+### 🟡 Issue: `decideRequisition` in `AppContext.jsx` requires a password prompt
+
+The current flow calls `window.prompt()` for password confirmation on every `decideRequisition`. This is correct for PAO (senior approval) but unnecessarily friction-heavy for Department Head (first-level). The backend `requireConfirmation` must be checked.
+
+**Finding**: `requireConfirmation` in `confirmation.js` needs to be checked — if it enforces password on Department Head too, the prompt dialog will block the approvals in the approval queue.
+
+---
+
+### 🟡 Issue: `returns.controller.js` — `create()` doesn't capture department
+
+When Department Head submits a return (they go directly to `Pending Technical Evaluation`), there's no `department` stored on the record. This means the `list` filter cannot scope returns for Department Head at all.
+
+---
+
+### 🟠 Frontend: `Requisitions.jsx` — filter for `?view=staff-approvals`
+
+Currently works but `visibleRequisitions` doesn't filter by the current user's department — it shows ALL pending requisitions. A Department Head from Engineering College would see requisitions from Science College too.
+
+---
+
+### 🟠 Frontend: `Returns.jsx` — filter for `?view=staff-approvals`
+
+Same issue: `visibleReturns` for `staff-approvals` shows ALL `Pending Department Approval` returns without department scoping.
+
+---
+
+### 🟠 Frontend: `Dashboard.jsx` — isDeptHead block
+
+Uses complex fallback logic (`currentUser?.department || currentUser?.name || "Engineering College"`) that makes the department match unreliable. When `currentUser.department` is `null` it shows everything.
+
+---
+
+### 🟠 Frontend: `Transfers.jsx` — no department scoping
+
+The transfers `list` endpoint returns ALL transfers with no scoping. Department Head sees every transfer in the university.
+
+---
+
+## Proposed Changes
+
+### Backend
+
+---
+
+#### [MODIFY] `returns.controller.js`
+- Add `department` column capture in `create()`: populate it from `req.user.department` when inserting.
+- Fix `list()` to filter with `LOWER(srn.department) = LOWER($N)` for Department Head (using the actual return note alias, not the joined requisition alias).
+- Include `srn.department` in the SELECT so it's available on the frontend.
+
+#### [MODIFY] `requisitions.controller.js`
+- Fix `list()`: for `Department Head`, skip the `assignedStoreIds` store-scope filter and only apply the department filter. This prevents double-filtering that can zero out results.
+
+#### [MODIFY] `transfers.controller.js`
+- Add department-based scoping in `list()` for Department Head: filter transfers where `requested_by = user.id` OR eventually by store.
+
+#### [MODIFY] `schema.sql`
+- Add `department TEXT` column to `store_return_notes` with an ALTER TABLE IF NOT EXISTS.
+
+---
+
+### Frontend
+
+---
+
+#### [MODIFY] `Requisitions.jsx`
+- Fix `visibleRequisitions` for `staff-approvals` view: add department filter when current user is Department Head.
+
+#### [MODIFY] `Returns.jsx`  
+- Fix `visibleReturns` for `staff-approvals` view: add department filter when current user is Department Head.
+- Fix `view === "submit"` trigger to not depend on URL param; open modal via button instead.
+
+#### [MODIFY] `Dashboard.jsx` — isDeptHead block
+- Simplify department resolution: use `currentUser.department` only (no fallback to name).
+- Show ALL pending requisitions/returns regardless of department match if `currentUser.department` is null (administrator-style).
+- Fix the pending requisitions filter to not double-count.
+- Remove the complex inline modals that duplicate page functionality — keep dashboard as an overview with actionable one-click approve/reject on items.
+
+#### [MODIFY] `Sidebar.jsx` — DEPT_HEAD_NAV
+- Clean up nav links to use only working routes (no `?view=submit` params that auto-open modals).
+
+---
+
+## Verification Plan
+
+1. Run `npm run build` in `sms-frontend` — must pass with 0 errors.
+2. Backend: ensure `returns.controller.js` list works for Department Head without SQL errors.
+3. Test approval flow: Department Head approves staff requisition → status becomes `Pending PAO Approval`.
+4. Test approval flow: Department Head approves staff return → status becomes `Pending Technical Evaluation`.
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> Should the `requireConfirmation` (password prompt) be required for Department Head when approving first-level requisitions and returns? Currently it applies to ALL `decide` calls. I recommend **removing the password prompt for first-level Department Head approvals** (since they are lower-stakes), but keeping it for PAO/Store Head final decisions. Let me know if you want the password prompt kept.
+
+> [!NOTE]
+> The Department Head user `tewodros.dept@university.edu` has `department = 'Engineering College'` and is also assigned to store `DS-01 (Engineering College Store)`. All backend fixes will use this department for scoping.
